@@ -1,32 +1,28 @@
 import { NavigationModern } from './components/NavigationModern';
-import { HeroModern } from './components/HeroModern';
-import { WhyUseSection } from './components/WhyUseSection';
-import { ExperienceSectionModern } from './components/ExperienceSectionModern';
-import { ImpactSectionModern } from './components/ImpactSectionModern';
-import { HowItWorksSectionModern } from './components/HowItWorksSectionModern';
-import { PartnersSectionModern } from './components/PartnersSectionModern';
-import { FAQSectionModern } from './components/FAQSectionModern';
-import { CTASectionModern } from './components/CTASectionModern';
-import { FooterModern } from './components/FooterModern';
+import { HeroInnovative } from './components/HeroInnovative';
+import { MysteryBoxesSection } from './components/MysteryBoxesSection';
+import { HowItWorksInnovative } from './components/HowItWorksInnovative';
+import { ImpactSectionInnovative } from './components/ImpactSectionInnovative';
+import { TestimonialsSection } from './components/TestimonialsSection';
+import { FAQSectionInnovative } from './components/FAQSectionInnovative';
+import { FooterInnovative } from './components/FooterInnovative';
 
 export default function App() {
   return (
     <div
       style={{
         fontFamily: "'Inter', 'Outfit', sans-serif",
-        backgroundColor: '#FFF8F0',
+        backgroundColor: '#0A0E27',
       }}
     >
       <NavigationModern />
-      <HeroModern />
-      <WhyUseSection />
-      <ExperienceSectionModern />
-      <ImpactSectionModern />
-      <HowItWorksSectionModern />
-      <PartnersSectionModern />
-      <FAQSectionModern />
-      <CTASectionModern />
-      <FooterModern />
+      <HeroInnovative />
+      <MysteryBoxesSection />
+      <HowItWorksInnovative />
+      <ImpactSectionInnovative />
+      <TestimonialsSection />
+      <FAQSectionInnovative />
+      <FooterInnovative />
     </div>
   );
 }

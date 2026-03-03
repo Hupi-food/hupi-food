@@ -16,10 +16,10 @@ export function NavigationModern() {
   }, []);
 
   const navLinks = [
-    { label: '¿Qué es un Hupit?', href: '#experiencia' },
-    { label: 'Impacto', href: '#impacto' },
-    { label: 'Cómo Funciona', href: '#como-funciona' },
-    { label: 'Aliados', href: '#aliados' },
+    { label: '¿Qué es un Hupit?', href: '#mystery-boxes' },
+    { label: 'Cómo Funciona', href: '#how-it-works' },
+    { label: 'Impacto', href: '#impact' },
+    { label: 'Preguntas', href: '#faq' },
   ];
 
   return (
