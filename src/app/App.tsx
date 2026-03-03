@@ -4,15 +4,13 @@ import { useAuth, UserRole } from './contexts/AuthContext';
 
 // --- Landing ---
 import { NavigationModern } from './components/NavigationModern';
-import { HeroModern } from './components/HeroModern';
-import { WhyUseSection } from './components/WhyUseSection';
-import { ExperienceSectionModern } from './components/ExperienceSectionModern';
-import { ImpactSectionModern } from './components/ImpactSectionModern';
-import { HowItWorksSectionModern } from './components/HowItWorksSectionModern';
-import { PartnersSectionModern } from './components/PartnersSectionModern';
-import { FAQSectionModern } from './components/FAQSectionModern';
-import { CTASectionModern } from './components/CTASectionModern';
-import { FooterModern } from './components/FooterModern';
+import { HeroInnovative } from './components/HeroInnovative';
+import { MysteryBoxesSection } from './components/MysteryBoxesSection';
+import { HowItWorksInnovative } from './components/HowItWorksInnovative';
+import { ImpactSectionInnovative } from './components/ImpactSectionInnovative';
+import { TestimonialsSection } from './components/TestimonialsSection';
+import { FAQSectionInnovative } from './components/FAQSectionInnovative';
+import { FooterInnovative } from './components/FooterInnovative';
 
 // --- Auth ---
 import { LoginScreen } from './views/auth/LoginScreen';
@@ -39,17 +37,15 @@ import { StoresScreen } from './views/admin/StoresScreen';
 import { SecurityScreen } from './views/admin/SecurityScreen';
 
 const LandingPage = () => (
-  <div style={{ fontFamily: "'Inter', 'Outfit', sans-serif", backgroundColor: '#FFF8F0' }}>
+  <div style={{ fontFamily: "'Inter', 'Outfit', sans-serif", backgroundColor: '#0A0E27' }}>
     <NavigationModern />
-    <HeroModern />
-    <WhyUseSection />
-    <ExperienceSectionModern />
-    <ImpactSectionModern />
-    <HowItWorksSectionModern />
-    <PartnersSectionModern />
-    <FAQSectionModern />
-    <CTASectionModern />
-    <FooterModern />
+    <HeroInnovative />
+    <MysteryBoxesSection />
+    <HowItWorksInnovative />
+    <ImpactSectionInnovative />
+    <TestimonialsSection />
+    <FAQSectionInnovative />
+    <FooterInnovative />
   </div>
 );
 

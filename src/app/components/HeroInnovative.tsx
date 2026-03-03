@@ -107,7 +107,7 @@ export function HeroInnovative() {
           className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
         >
           <motion.a
-            href="https://whatsapp.com/channel/hupi-food"
+            href="https://whatsapp.com/channel/0029VbCQrFV1SWt3xy6MQE1A"
             target="_blank"
             rel="noopener noreferrer"
             whileHover={{ scale: 1.05, y: -3 }}
@@ -128,9 +128,7 @@ export function HeroInnovative() {
           </motion.a>
 
           <motion.a
-            href="https://app.hupifood.co"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/login"
             whileHover={{ scale: 1.05, y: -3 }}
             whileTap={{ scale: 0.95 }}
             className="px-10 py-4 rounded-2xl border-2 font-semibold text-lg flex items-center justify-center gap-3 transition-all duration-300 no-underline backdrop-blur-sm"

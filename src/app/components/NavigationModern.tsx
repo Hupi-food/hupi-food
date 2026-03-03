@@ -81,7 +81,7 @@ export function NavigationModern() {
               </motion.a>
             ))}
             <motion.a
-              href="https://whatsapp.com/channel/hupi-food"
+              href="https://whatsapp.com/channel/0029VbCQrFV1SWt3xy6MQE1A"
               target="_blank"
               rel="noopener noreferrer"
               initial={{ opacity: 0, scale: 0.9 }}
@@ -150,7 +150,7 @@ export function NavigationModern() {
                 </a>
               ))}
               <a
-                href="https://whatsapp.com/channel/hupi-food"
+                href="https://whatsapp.com/channel/0029VbCQrFV1SWt3xy6MQE1A"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="block px-6 py-3 w-full rounded-full font-semibold text-sm text-center no-underline"

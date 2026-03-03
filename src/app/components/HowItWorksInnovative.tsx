@@ -93,9 +93,8 @@ export function HowItWorksInnovative() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.6, delay: index * 0.1 }}
-                  className={`md:flex md:items-center md:gap-8 ${
-                    isEven ? 'md:flex-row' : 'md:flex-row-reverse'
-                  }`}
+                  className={`md:flex md:items-center md:gap-8 ${isEven ? 'md:flex-row' : 'md:flex-row-reverse'
+                    }`}
                 >
                   {/* Content */}
                   <div className={`md:w-1/2 ${isEven ? 'md:text-right' : 'md:text-left'}`}>
@@ -191,9 +190,7 @@ export function HowItWorksInnovative() {
             ¿Listo para tu primera caja misteriosa?
           </p>
           <motion.a
-            href="https://app.hupifood.co"
-            target="_blank"
-            rel="noopener noreferrer"
+            href="/login"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="inline-block px-10 py-4 rounded-2xl font-bold text-lg relative overflow-hidden group no-underline"

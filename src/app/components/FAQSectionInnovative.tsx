@@ -205,7 +205,7 @@ export function FAQSectionInnovative() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <motion.a
-              href="https://whatsapp.com/channel/hupi-food"
+              href="https://whatsapp.com/channel/0029VbCQrFV1SWt3xy6MQE1A"
               target="_blank"
               rel="noopener noreferrer"
               whileHover={{ scale: 1.05 }}
