@@ -4,13 +4,15 @@ import { useAuth, UserRole } from './contexts/AuthContext';
 
 // --- Landing ---
 import { NavigationModern } from './components/NavigationModern';
-import { HeroInnovative } from './components/HeroInnovative';
-import { MysteryBoxesSection } from './components/MysteryBoxesSection';
-import { HowItWorksInnovative } from './components/HowItWorksInnovative';
-import { ImpactSectionInnovative } from './components/ImpactSectionInnovative';
-import { TestimonialsSection } from './components/TestimonialsSection';
-import { FAQSectionInnovative } from './components/FAQSectionInnovative';
-import { FooterInnovative } from './components/FooterInnovative';
+import { HeroModern } from './components/HeroModern';
+import { WhyUseSection } from './components/WhyUseSection';
+import { ExperienceSectionModern } from './components/ExperienceSectionModern';
+import { ImpactSectionModern } from './components/ImpactSectionModern';
+import { HowItWorksSectionModern } from './components/HowItWorksSectionModern';
+import { PartnersSectionModern } from './components/PartnersSectionModern';
+import { FAQSectionModern } from './components/FAQSectionModern';
+import { CTASectionModern } from './components/CTASectionModern';
+import { FooterModern } from './components/FooterModern';
 
 // --- Auth ---
 import { LoginScreen } from './views/auth/LoginScreen';
@@ -63,7 +65,6 @@ const RequireAuth = ({ children, allowedRole }: { children: React.ReactNode; all
 
 export default function App() {
   return (
-<<<<<<< HEAD
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginScreen />} />
@@ -93,22 +94,5 @@ export default function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-=======
-    <div
-      style={{
-        fontFamily: "'Inter', 'Outfit', sans-serif",
-        backgroundColor: '#0A0E27',
-      }}
-    >
-      <NavigationModern />
-      <HeroInnovative />
-      <MysteryBoxesSection />
-      <HowItWorksInnovative />
-      <ImpactSectionInnovative />
-      <TestimonialsSection />
-      <FAQSectionInnovative />
-      <FooterInnovative />
-    </div>
->>>>>>> aaf506c5c8ea25919e7bbb124adbcb0445abad66
   );
 }
