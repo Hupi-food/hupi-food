@@ -43,8 +43,10 @@ interface AuthContextType {
     logout: () => void;
     registerCustomer: (data: RegisterCustomerData) => Promise<{ success: boolean; error?: string }>;
     registerStore: (data: RegisterStoreData) => Promise<{ success: boolean; error?: string }>;
+    updateUserStatus: (userId: string, status: StoreOwnerStatus) => Promise<{ success: boolean; error?: string }>;
     isAuthenticated: boolean;
     isLoading: boolean;
+    isPendingApproval: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -133,6 +135,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setIsLoading(false);
     }, []);
 
+    const isPendingApproval = user?.role === 'store_owner' && user?.storeOwnerStatus === 'pending_approval';
+
     useEffect(() => {
         // Obtener sesión inicial
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -205,9 +209,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (authError) return { success: false, error: translateAuthError(authError) };
 
-        // Crear perfil en la tabla profiles
+        // El Trigger `on_auth_user_created` se encarga de crear el perfil.
+        // Hacemos una inserción manual como respaldo y para capturar errores inmediatos.
         if (authData.user) {
-            const { error: profileError } = await supabase.from('profiles').insert({
+            const { error: profileError } = await supabase.from('profiles').upsert({
                 id: authData.user.id,
                 name: data.name,
                 email: data.email,
@@ -217,6 +222,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (profileError) {
                 console.error('[Hupit] Error creando perfil:', profileError.message);
+                // No bloqueamos el flujo porque el trigger es el respaldo principal, 
+                // pero informamos si algo salió muy mal.
             }
         }
 
@@ -232,15 +239,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 data: {
                     name: data.ownerName,
                     role: 'store_owner',
+                    store_name: data.storeName,
+                    store_category: data.storeCategory,
+                    store_address: data.storeAddress,
+                    phone: data.phone,
                 },
             },
         });
 
         if (authError) return { success: false, error: translateAuthError(authError) };
 
-        // Crear perfil con estado pendiente de aprobación
+        // El Trigger `on_auth_user_created` se encarga de crear el perfil.
+        // Hacemos una inserción manual como respaldo.
         if (authData.user) {
-            const { error: profileError } = await supabase.from('profiles').insert({
+            const { error: profileError } = await supabase.from('profiles').upsert({
                 id: authData.user.id,
                 name: data.ownerName,
                 email: data.email,
@@ -261,6 +273,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return { success: true };
     };
 
+    // ── Actualizar Estado (Admin) ────────────────────────────────────────────
+    const updateUserStatus = async (userId: string, status: StoreOwnerStatus): Promise<{ success: boolean; error?: string }> => {
+        const { error } = await supabase
+            .from('profiles')
+            .update({ store_owner_status: status })
+            .eq('id', userId);
+
+        if (error) return { success: false, error: error.message };
+
+        // Actualizar lista local de usuarios
+        setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, storeOwnerStatus: status } : u));
+
+        return { success: true };
+    };
+
     return (
         <AuthContext.Provider value={{
             user,
@@ -269,8 +296,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             logout,
             registerCustomer,
             registerStore,
+            updateUserStatus,
             isAuthenticated: !!user,
             isLoading,
+            isPendingApproval,
         }}>
             {children}
         </AuthContext.Provider>

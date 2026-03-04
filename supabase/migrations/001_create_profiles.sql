@@ -55,7 +55,57 @@ CREATE POLICY "Super admin can read all profiles"
         )
     );
 
--- 7. Función para actualizar updated_at automáticamente
+-- 7. Función para crear el perfil automáticamente al registrarse
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (
+    id, 
+    name, 
+    email, 
+    role, 
+    avatar,
+    store_owner_status,
+    store_name,
+    store_category,
+    store_address,
+    phone
+  )
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'name', ''),
+    NEW.email,
+    COALESCE(NEW.raw_user_meta_data->>'role', 'customer'),
+    -- Generar avatar (iniciales)
+    UPPER(SUBSTRING(COALESCE(NEW.raw_user_meta_data->>'name', NEW.email), 1, 2)),
+    CASE 
+      WHEN NEW.raw_user_meta_data->>'role' = 'store_owner' THEN 'pending_approval'
+      ELSE NULL
+    END,
+    NEW.raw_user_meta_data->>'store_name',
+    NEW.raw_user_meta_data->>'store_category',
+    NEW.raw_user_meta_data->>'store_address',
+    NEW.raw_user_meta_data->>'phone'
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    name = EXCLUDED.name,
+    role = EXCLUDED.role,
+    store_name = EXCLUDED.store_name,
+    store_category = EXCLUDED.store_category,
+    store_address = EXCLUDED.store_address,
+    phone = EXCLUDED.phone;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- 8. Trigger para registro automático
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- 9. Función para actualizar updated_at automáticamente
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -64,7 +114,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 8. Trigger
+-- 10. Trigger para updated_at
 DROP TRIGGER IF EXISTS set_updated_at ON public.profiles;
 CREATE TRIGGER set_updated_at
     BEFORE UPDATE ON public.profiles

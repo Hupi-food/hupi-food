@@ -17,6 +17,7 @@ import { FooterInnovative } from './components/FooterInnovative';
 import { LoginScreen } from './views/auth/LoginScreen';
 import { RegisterScreen } from './views/auth/RegisterScreen';
 import { RegisterStoreScreen } from './views/auth/RegisterStoreScreen';
+import { PendingApprovalScreen } from './views/auth/PendingApprovalScreen';
 
 // --- Customer ---
 import { HomeScreen } from './views/customer/HomeScreen';
@@ -54,9 +55,15 @@ const LandingPage = () => (
 
 // Protected Route Wrapper
 const RequireAuth = ({ children, allowedRole }: { children: React.ReactNode; allowedRole: UserRole }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isPendingApproval } = useAuth();
 
   if (!isAuthenticated) return <Navigate to="/login" replace />;
+
+  // Si está pendiente de aprobación y es store_owner, solo puede ver la pantalla de pendiente
+  if (isPendingApproval && user?.role === 'store_owner' && allowedRole === 'store_owner') {
+    return <Navigate to="/store/pending" replace />;
+  }
+
   if (user?.role !== allowedRole) return <Navigate to="/login" replace />;
 
   return <>{children}</>;
@@ -70,6 +77,11 @@ export default function App() {
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/register" element={<RegisterScreen />} />
       <Route path="/register/store" element={<RegisterStoreScreen />} />
+      <Route path="/store/pending" element={
+        <RequireAuth allowedRole="store_owner">
+          <PendingApprovalScreen />
+        </RequireAuth>
+      } />
 
       {/* Customer Routes */}
       <Route path="/app/home" element={<RequireAuth allowedRole="customer"><HomeScreen /></RequireAuth>} />
