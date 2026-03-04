@@ -1,161 +1,184 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { useAuth, type UserRole } from '../../contexts/AuthContext';
+import { useNavigate, Link } from 'react-router';
+import { useAuth } from '../../contexts/AuthContext';
 
-const ROLES = [
-    { id: 'customer' as UserRole, label: 'Cliente', icon: '🛍️', desc: 'Explora y compra Hupit Boxes', color: '#2D6A4F', path: '/app/home' },
-    { id: 'store_owner' as UserRole, label: 'Tienda', icon: '🏪', desc: 'Gestiona tu inventario y pedidos', color: '#F77F00', path: '/store/dashboard' },
-    { id: 'super_admin' as UserRole, label: 'Admin', icon: '⚡', desc: 'Panel de control global', color: '#6D28D9', path: '/admin/overview' },
-];
+const ROLE_PATH: Record<string, string> = {
+    customer: '/app/home',
+    store_owner: '/store/dashboard',
+    super_admin: '/admin/overview',
+};
 
 export const LoginScreen: React.FC = () => {
     const { login } = useAuth();
     const navigate = useNavigate();
-    const [selectedRole, setSelectedRole] = useState<UserRole>('customer');
+
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [isLoading, setIsLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState('');
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError('');
+        if (!email || !password) {
+            setError('Ingresa tu correo y contraseña.');
+            return;
+        }
         setIsLoading(true);
-        setTimeout(() => {
-            login(email || 'demo@hupit.co', password || 'demo', selectedRole);
-            const role = ROLES.find(r => r.id === selectedRole);
-            navigate(role?.path || '/app/home');
-        }, 1200);
+        const result = await login(email.trim().toLowerCase(), password);
+        setIsLoading(false);
+        if (!result.success) {
+            setError(result.error || 'Error al iniciar sesión.');
+            return;
+        }
+        // Leer el rol actualizado desde localStorage después del login
+        try {
+            const session = localStorage.getItem('hupit_session');
+            if (session) {
+                const u = JSON.parse(session);
+                navigate(ROLE_PATH[u.role] || '/app/home', { replace: true });
+                return;
+            }
+        } catch { /* */ }
+        navigate('/app/home', { replace: true });
     };
 
-    const selectedRoleConfig = ROLES.find(r => r.id === selectedRole)!;
-
-    return (
-        <div style={{
+    const S = {
+        page: {
             minHeight: '100dvh',
-            background: 'linear-gradient(160deg, #1B1B2F 0%, #2D2D44 50%, #1B3A2F 100%)',
+            background: 'linear-gradient(160deg, #0A0E27 0%, #1B2A1F 100%)',
             display: 'flex',
-            flexDirection: 'column',
+            flexDirection: 'column' as const,
             alignItems: 'center',
             justifyContent: 'center',
             padding: '24px 20px',
-            fontFamily: "'Inter', 'Outfit', sans-serif",
-        }}>
+            fontFamily: "'Inter', sans-serif",
+        },
+        card: {
+            background: 'rgba(255,255,255,0.05)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '28px',
+            padding: '36px 28px',
+            width: '100%',
+            maxWidth: '420px',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.5)',
+        },
+        label: {
+            display: 'block', color: 'rgba(255,255,255,0.7)',
+            fontSize: '13px', marginBottom: '6px', fontWeight: 500,
+        } as React.CSSProperties,
+        input: {
+            width: '100%', padding: '12px 14px', borderRadius: '14px',
+            border: '1.5px solid rgba(255,255,255,0.15)',
+            background: 'rgba(255,255,255,0.07)', color: '#fff',
+            fontSize: '15px', outline: 'none', boxSizing: 'border-box' as const,
+        } as React.CSSProperties,
+        btn: {
+            width: '100%', padding: '14px',
+            background: 'linear-gradient(135deg, #2D6A4F, #40916C)',
+            color: '#fff', border: 'none', borderRadius: '16px',
+            fontSize: '16px', fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 8px 24px rgba(45,106,79,0.4)',
+            transition: 'opacity 0.2s',
+        } as React.CSSProperties,
+    };
+
+    return (
+        <div style={S.page}>
             {/* Logo */}
             <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                <div style={{ fontSize: '56px', marginBottom: '8px', filter: 'drop-shadow(0 4px 12px rgba(255,215,0,0.4))' }}>🎁</div>
-                <div style={{ fontSize: '32px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>
-                    Hupit
+                <div style={{ fontSize: '52px', marginBottom: '8px' }}>
+                    <svg width="56" height="56" viewBox="0 0 56 56" fill="none" style={{ display: 'inline-block' }}>
+                        <circle cx="28" cy="28" r="28" fill="rgba(45,106,79,0.3)" />
+                        <text x="50%" y="54%" textAnchor="middle" dominantBaseline="middle" fontSize="28" fill="#40916C">H</text>
+                    </svg>
                 </div>
-                <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
+                <div style={{ fontSize: '32px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>Hupit</div>
+                <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', marginTop: '4px' }}>
                     Rescata comida · Gana recompensas
                 </div>
             </div>
 
-            {/* Card */}
-            <div style={{
-                background: 'rgba(255,255,255,0.06)',
-                backdropFilter: 'blur(20px)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '28px',
-                padding: '32px 28px',
-                width: '100%',
-                maxWidth: '420px',
-                boxShadow: '0 24px 60px rgba(0,0,0,0.4)',
-            }}>
-                {/* Role Selector */}
-                <div style={{ marginBottom: '24px' }}>
-                    <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', marginBottom: '10px', textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                        Modo Demo — Selecciona tu rol
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                        {ROLES.map(role => (
-                            <button
-                                key={role.id}
-                                onClick={() => setSelectedRole(role.id)}
-                                style={{
-                                    padding: '10px 6px',
-                                    borderRadius: '14px',
-                                    border: selectedRole === role.id
-                                        ? `2px solid ${role.color}`
-                                        : '2px solid rgba(255,255,255,0.1)',
-                                    background: selectedRole === role.id
-                                        ? `${role.color}22`
-                                        : 'rgba(255,255,255,0.04)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    transition: 'all 0.2s',
-                                    color: selectedRole === role.id ? '#fff' : 'rgba(255,255,255,0.5)',
-                                }}
-                            >
-                                <span style={{ fontSize: '22px' }}>{role.icon}</span>
-                                <span style={{ fontSize: '11px', fontWeight: 700 }}>{role.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
+            <div style={S.card}>
+                <h2 style={{ color: '#fff', fontSize: '22px', fontWeight: 700, margin: '0 0 6px' }}>
+                    Iniciar sesión
+                </h2>
+                <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', margin: '0 0 28px' }}>
+                    Ingresa con tu correo y contraseña registrados.
+                </p>
 
-                {/* Role description */}
+                {/* Credenciales admin info */}
                 <div style={{
-                    background: `${selectedRoleConfig.color}18`,
-                    border: `1px solid ${selectedRoleConfig.color}40`,
-                    borderRadius: '12px',
-                    padding: '10px 14px',
-                    marginBottom: '20px',
-                    textAlign: 'center',
-                    color: 'rgba(255,255,255,0.7)',
-                    fontSize: '13px',
+                    background: 'rgba(45,106,79,0.15)', border: '1px solid rgba(64,145,108,0.3)',
+                    borderRadius: '12px', padding: '10px 14px', marginBottom: '20px',
                 }}>
-                    {selectedRoleConfig.icon} {selectedRoleConfig.desc}
+                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Super Admin (cuenta inicial)
+                    </p>
+                    <p style={{ color: '#74C69D', fontSize: '12px', margin: 0, fontFamily: 'monospace' }}>
+                        admin@hupit.co · Hupit@2026!
+                    </p>
                 </div>
 
-                {/* Form */}
+                {error && (
+                    <div style={{
+                        background: '#EF444420', border: '1px solid #EF4444',
+                        borderRadius: '12px', padding: '12px 14px', marginBottom: '18px',
+                        color: '#FCA5A5', fontSize: '13px',
+                    }}>
+                        {error}
+                    </div>
+                )}
+
                 <form onSubmit={handleLogin}>
-                    <div style={{ marginBottom: '14px' }}>
-                        <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '13px', marginBottom: '6px', fontWeight: 500 }}>
-                            Correo electrónico
-                        </label>
+                    <div style={{ marginBottom: '16px' }}>
+                        <label style={S.label}>Correo electrónico</label>
                         <input
                             type="email"
                             value={email}
-                            onChange={e => setEmail(e.target.value)}
+                            onChange={e => { setEmail(e.target.value); setError(''); }}
                             placeholder="tu@email.com"
-                            style={{
-                                width: '100%', padding: '12px 14px', borderRadius: '14px',
-                                border: '1.5px solid rgba(255,255,255,0.15)',
-                                background: 'rgba(255,255,255,0.08)', color: '#fff',
-                                fontSize: '15px', outline: 'none', boxSizing: 'border-box',
-                            }}
+                            autoComplete="email"
+                            style={S.input}
                         />
                     </div>
-                    <div style={{ marginBottom: '24px' }}>
-                        <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '13px', marginBottom: '6px', fontWeight: 500 }}>
-                            Contraseña
-                        </label>
+
+                    <div style={{ marginBottom: '28px' }}>
+                        <label style={S.label}>Contraseña</label>
                         <div style={{ position: 'relative' }}>
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 value={password}
-                                onChange={e => setPassword(e.target.value)}
+                                onChange={e => { setPassword(e.target.value); setError(''); }}
                                 placeholder="••••••••"
-                                style={{
-                                    width: '100%', padding: '12px 44px 12px 14px', borderRadius: '14px',
-                                    border: '1.5px solid rgba(255,255,255,0.15)',
-                                    background: 'rgba(255,255,255,0.08)', color: '#fff',
-                                    fontSize: '15px', outline: 'none', boxSizing: 'border-box',
-                                }}
+                                autoComplete="current-password"
+                                style={{ ...S.input, paddingRight: '44px' }}
                             />
                             <button
                                 type="button"
-                                onClick={() => setShowPassword(!showPassword)}
+                                onClick={() => setShowPassword(v => !v)}
                                 style={{
-                                    position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)',
-                                    background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px', opacity: 0.6,
+                                    position: 'absolute', right: '12px', top: '50%',
+                                    transform: 'translateY(-50%)',
+                                    background: 'none', border: 'none', cursor: 'pointer',
+                                    color: 'rgba(255,255,255,0.5)', padding: '4px',
                                 }}
+                                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                             >
-                                {showPassword ? '🙈' : '👁️'}
+                                {showPassword ? (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                                        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                                        <line x1="1" y1="1" x2="23" y2="23" />
+                                    </svg>
+                                ) : (
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                                        <circle cx="12" cy="12" r="3" />
+                                    </svg>
+                                )}
                             </button>
                         </div>
                     </div>
@@ -163,37 +186,26 @@ export const LoginScreen: React.FC = () => {
                     <button
                         type="submit"
                         disabled={isLoading}
-                        style={{
-                            width: '100%', padding: '14px',
-                            background: isLoading
-                                ? 'rgba(255,255,255,0.2)'
-                                : `linear-gradient(135deg, ${selectedRoleConfig.color}, ${selectedRoleConfig.color}CC)`,
-                            color: '#fff', border: 'none', borderRadius: '16px',
-                            fontSize: '16px', fontWeight: 700, cursor: isLoading ? 'not-allowed' : 'pointer',
-                            transition: 'all 0.2s', boxShadow: isLoading ? 'none' : `0 8px 24px ${selectedRoleConfig.color}40`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                        }}
+                        style={{ ...S.btn, opacity: isLoading ? 0.6 : 1 }}
                     >
-                        {isLoading ? (
-                            <>
-                                <span style={{ animation: 'spin 1s linear infinite', display: 'inline-block' }}>⏳</span>
-                                Entrando...
-                            </>
-                        ) : (
-                            `Entrar como ${selectedRoleConfig.label} ${selectedRoleConfig.icon}`
-                        )}
+                        {isLoading ? 'Verificando...' : 'Iniciar sesión'}
                     </button>
                 </form>
 
-                <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: '12px', marginTop: '20px' }}>
-                    Modo demo — todos los accesos son válidos
-                </p>
+                <div style={{ textAlign: 'center', marginTop: '20px', color: 'rgba(255,255,255,0.4)', fontSize: '13px' }}>
+                    ¿No tienes cuenta?{' '}
+                    <Link to="/register" style={{ color: '#40916C', fontWeight: 600, textDecoration: 'none' }}>
+                        Regístrate
+                    </Link>
+                </div>
+                <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                    <Link to="/register/store" style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', textDecoration: 'none' }}>
+                        ¿Eres dueño de un local? Regístrate aquí
+                    </Link>
+                </div>
             </div>
 
-            <style>{`
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        input::placeholder { color: rgba(255,255,255,0.3); }
-      `}</style>
+            <style>{`input::placeholder { color: rgba(255,255,255,0.25); }`}</style>
         </div>
     );
 };
