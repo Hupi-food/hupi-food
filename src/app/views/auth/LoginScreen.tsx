@@ -9,7 +9,7 @@ const ROLE_PATH: Record<string, string> = {
 };
 
 export const LoginScreen: React.FC = () => {
-    const { login } = useAuth();
+    const { login, user } = useAuth();
     const navigate = useNavigate();
 
     const [email, setEmail] = useState('');
@@ -17,6 +17,13 @@ export const LoginScreen: React.FC = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
+
+    // Si ya está autenticado, redirigir
+    React.useEffect(() => {
+        if (user) {
+            navigate(ROLE_PATH[user.role] || '/app/home', { replace: true });
+        }
+    }, [user, navigate]);
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -30,18 +37,8 @@ export const LoginScreen: React.FC = () => {
         setIsLoading(false);
         if (!result.success) {
             setError(result.error || 'Error al iniciar sesión.');
-            return;
         }
-        // Leer el rol actualizado desde localStorage después del login
-        try {
-            const session = localStorage.getItem('hupit_session');
-            if (session) {
-                const u = JSON.parse(session);
-                navigate(ROLE_PATH[u.role] || '/app/home', { replace: true });
-                return;
-            }
-        } catch { /* */ }
-        navigate('/app/home', { replace: true });
+        // La redirección ocurre automáticamente vía useEffect + onAuthStateChange
     };
 
     const S = {
@@ -108,19 +105,6 @@ export const LoginScreen: React.FC = () => {
                 <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', margin: '0 0 28px' }}>
                     Ingresa con tu correo y contraseña registrados.
                 </p>
-
-                {/* Credenciales admin info */}
-                <div style={{
-                    background: 'rgba(45,106,79,0.15)', border: '1px solid rgba(64,145,108,0.3)',
-                    borderRadius: '12px', padding: '10px 14px', marginBottom: '20px',
-                }}>
-                    <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                        Super Admin (cuenta inicial)
-                    </p>
-                    <p style={{ color: '#74C69D', fontSize: '12px', margin: 0, fontFamily: 'monospace' }}>
-                        admin@hupit.co · Hupit@2026!
-                    </p>
-                </div>
 
                 {error && (
                     <div style={{

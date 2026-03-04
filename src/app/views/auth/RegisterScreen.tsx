@@ -1,8 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
-
-type Step = 'form' | 'verification' | 'success';
 
 interface FormErrors {
     name?: string;
@@ -14,12 +12,12 @@ interface FormErrors {
 const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
 export const RegisterScreen: React.FC = () => {
-    const { registerCustomer, verifyEmail, resendVerification, pendingVerificationEmail } = useAuth();
+    const { registerCustomer } = useAuth();
     const navigate = useNavigate();
 
-    const [step, setStep] = useState<Step>('form');
+    const [step, setStep] = useState<'form' | 'success'>('form');
 
-    // ── Step 1: datos ──────────────────────────────────────────────────────────
+    // ── Datos del formulario ────────────────────────────────────────────────
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -30,26 +28,7 @@ export const RegisterScreen: React.FC = () => {
     const [submitting, setSubmitting] = useState(false);
     const [globalError, setGlobalError] = useState('');
 
-    // ── Step 2: verificación ───────────────────────────────────────────────────
-    const [code, setCode] = useState(['', '', '', '', '', '']);
-    const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
-    const [verifying, setVerifying] = useState(false);
-    const [verifyError, setVerifyError] = useState('');
-    const [resendCooldown, setResendCooldown] = useState(0);
-    const [currentEmail, setCurrentEmail] = useState('');
-
-    useEffect(() => {
-        if (pendingVerificationEmail) setCurrentEmail(pendingVerificationEmail);
-    }, [pendingVerificationEmail]);
-
-    // Cooldown timer para reenvío
-    useEffect(() => {
-        if (resendCooldown <= 0) return;
-        const timer = setTimeout(() => setResendCooldown(c => c - 1), 1000);
-        return () => clearTimeout(timer);
-    }, [resendCooldown]);
-
-    // ── Validación formulario ──────────────────────────────────────────────────
+    // ── Validación formulario ──────────────────────────────────────────────
     const validate = (): boolean => {
         const e: FormErrors = {};
         if (!name.trim() || name.trim().length < 3) e.name = 'Ingresa tu nombre completo (mín. 3 caracteres).';
@@ -68,52 +47,7 @@ export const RegisterScreen: React.FC = () => {
         const result = await registerCustomer({ name: name.trim(), email: email.trim().toLowerCase(), password });
         setSubmitting(false);
         if (!result.success) { setGlobalError(result.error || 'Error al registrar.'); return; }
-        setStep('verification');
-    };
-
-    // ── Código OTP ─────────────────────────────────────────────────────────────
-    const handleCodeChange = (index: number, value: string) => {
-        if (!/^\d*$/.test(value)) return;
-        const next = [...code];
-        next[index] = value.slice(-1);
-        setCode(next);
-        setVerifyError('');
-        if (value && index < 5) codeRefs.current[index + 1]?.focus();
-    };
-
-    const handleCodeKeyDown = (index: number, ev: React.KeyboardEvent) => {
-        if (ev.key === 'Backspace' && !code[index] && index > 0) {
-            codeRefs.current[index - 1]?.focus();
-        }
-    };
-
-    const handleCodePaste = (ev: React.ClipboardEvent) => {
-        ev.preventDefault();
-        const pasted = ev.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-        const next = [...code];
-        pasted.split('').forEach((ch, i) => { next[i] = ch; });
-        setCode(next);
-        codeRefs.current[Math.min(pasted.length, 5)]?.focus();
-    };
-
-    const handleVerify = async () => {
-        const fullCode = code.join('');
-        if (fullCode.length < 6) { setVerifyError('Ingresa el código completo de 6 dígitos.'); return; }
-        setVerifying(true);
-        setVerifyError('');
-        const result = await verifyEmail(currentEmail, fullCode);
-        setVerifying(false);
-        if (!result.success) { setVerifyError(result.error || 'Error al verificar.'); return; }
         setStep('success');
-    };
-
-    const handleResend = async () => {
-        if (resendCooldown > 0) return;
-        await resendVerification(currentEmail);
-        setResendCooldown(60);
-        setCode(['', '', '', '', '', '']);
-        setVerifyError('');
-        codeRefs.current[0]?.focus();
     };
 
     const passwordStrength = (): { level: number; label: string; color: string } => {
@@ -131,7 +65,7 @@ export const RegisterScreen: React.FC = () => {
 
     const strength = passwordStrength();
 
-    // ── Estilos compartidos ────────────────────────────────────────────────────
+    // ── Estilos ────────────────────────────────────────────────────────────
     const S = {
         page: {
             minHeight: '100dvh',
@@ -173,7 +107,7 @@ export const RegisterScreen: React.FC = () => {
         } as React.CSSProperties,
     };
 
-    // ── STEP 1: Formulario ─────────────────────────────────────────────────────
+    // ── Formulario ─────────────────────────────────────────────────────────
     if (step === 'form') return (
         <div style={S.page}>
             {/* Logo */}
@@ -182,9 +116,6 @@ export const RegisterScreen: React.FC = () => {
                 <div style={{ fontSize: '30px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>Hupit</div>
                 <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.45)', marginTop: '3px' }}>Crea tu cuenta de cliente</div>
             </div>
-
-            {/* Indicador de pasos */}
-            <StepsIndicator current={0} />
 
             <div style={S.card}>
                 <h2 style={{ color: '#fff', fontSize: '20px', fontWeight: 700, marginBottom: '6px', margin: '0 0 4px' }}>
@@ -240,7 +171,7 @@ export const RegisterScreen: React.FC = () => {
                                 {showPassword ? '🙈' : '👁️'}
                             </button>
                         </div>
-                        {/* Barra de fortaleza */}
+                        {/* Strength bar */}
                         {password && (
                             <div style={{ marginTop: '8px' }}>
                                 <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
@@ -254,7 +185,7 @@ export const RegisterScreen: React.FC = () => {
                         {errors.password && <p style={S.errorMsg}>{errors.password}</p>}
                     </div>
 
-                    {/* Confirmar */}
+                    {/* Confirm */}
                     <div style={{ marginBottom: '28px', marginTop: '12px' }}>
                         <label style={S.label}>Confirmar contraseña</label>
                         <div style={{ position: 'relative' }}>
@@ -273,7 +204,7 @@ export const RegisterScreen: React.FC = () => {
                     </div>
 
                     <button type="submit" style={{ ...S.btn, opacity: submitting ? 0.6 : 1 }} disabled={submitting}>
-                        {submitting ? 'Creando cuenta...' : 'Continuar'}
+                        {submitting ? 'Creando cuenta...' : 'Crear cuenta'}
                     </button>
                 </form>
 
@@ -293,86 +224,13 @@ export const RegisterScreen: React.FC = () => {
         </div>
     );
 
-    // ── STEP 2: Verificación de correo ─────────────────────────────────────────
-    if (step === 'verification') return (
+    // ── Éxito ──────────────────────────────────────────────────────────────
+    return (
         <div style={S.page}>
             <div style={{ textAlign: 'center', marginBottom: '28px' }}>
                 <div style={{ fontSize: '48px', marginBottom: '6px' }}>📬</div>
                 <div style={{ fontSize: '30px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>Hupit</div>
             </div>
-
-            <StepsIndicator current={1} />
-
-            <div style={S.card}>
-                <h2 style={{ color: '#fff', fontSize: '20px', fontWeight: 700, margin: '0 0 8px' }}>Verifica tu correo</h2>
-                <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '13px', margin: '0 0 6px' }}>
-                    Enviamos un código de 6 dígitos a:
-                </p>
-                <p style={{ color: '#40916C', fontSize: '14px', fontWeight: 600, margin: '0 0 28px', wordBreak: 'break-all' }}>
-                    {currentEmail}
-                </p>
-
-                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', margin: '0 0 16px', background: 'rgba(255,255,255,0.05)', padding: '10px 12px', borderRadius: '10px' }}>
-                    En entorno demo, el código aparece en la consola del navegador (F12).
-                </p>
-
-                {/* OTP Input */}
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginBottom: '20px' }} onPaste={handleCodePaste}>
-                    {code.map((digit, i) => (
-                        <input
-                            key={i}
-                            ref={el => { codeRefs.current[i] = el; }}
-                            type="text" inputMode="numeric" maxLength={1} value={digit}
-                            onChange={e => handleCodeChange(i, e.target.value)}
-                            onKeyDown={e => handleCodeKeyDown(i, e)}
-                            style={{
-                                width: '48px', height: '58px', textAlign: 'center',
-                                fontSize: '24px', fontWeight: 700, color: '#fff',
-                                background: digit ? 'rgba(45,106,79,0.25)' : 'rgba(255,255,255,0.07)',
-                                border: `2px solid ${digit ? '#40916C' : 'rgba(255,255,255,0.15)'}`,
-                                borderRadius: '14px', outline: 'none', caretColor: '#40916C',
-                                transition: 'all 0.2s',
-                            }}
-                        />
-                    ))}
-                </div>
-
-                {verifyError && (
-                    <div style={{ background: '#EF444418', border: '1px solid #EF4444', borderRadius: '10px', padding: '10px 12px', marginBottom: '16px', color: '#FCA5A5', fontSize: '13px', textAlign: 'center' }}>
-                        {verifyError}
-                    </div>
-                )}
-
-                <button
-                    onClick={handleVerify}
-                    disabled={verifying || code.join('').length < 6}
-                    style={{ ...S.btn, opacity: (verifying || code.join('').length < 6) ? 0.5 : 1, marginBottom: '16px' }}
-                >
-                    {verifying ? 'Verificando...' : 'Verificar correo'}
-                </button>
-
-                <div style={{ textAlign: 'center' }}>
-                    <button
-                        onClick={handleResend}
-                        disabled={resendCooldown > 0}
-                        style={{ background: 'none', border: 'none', cursor: resendCooldown > 0 ? 'not-allowed' : 'pointer', color: resendCooldown > 0 ? 'rgba(255,255,255,0.3)' : '#40916C', fontSize: '13px', fontWeight: 600 }}
-                    >
-                        {resendCooldown > 0 ? `Reenviar en ${resendCooldown}s` : 'Reenviar código'}
-                    </button>
-                </div>
-            </div>
-        </div>
-    );
-
-    // ── STEP 3: Éxito ──────────────────────────────────────────────────────────
-    return (
-        <div style={S.page}>
-            <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-                <div style={{ fontSize: '48px', marginBottom: '6px' }}>🎉</div>
-                <div style={{ fontSize: '30px', fontWeight: 900, color: '#fff', letterSpacing: '-1px' }}>Hupit</div>
-            </div>
-
-            <StepsIndicator current={2} />
 
             <div style={{ ...S.card, textAlign: 'center' }}>
                 <div style={{
@@ -384,49 +242,21 @@ export const RegisterScreen: React.FC = () => {
                     ✓
                 </div>
                 <h2 style={{ color: '#fff', fontSize: '22px', fontWeight: 700, margin: '0 0 10px' }}>
-                    ¡Cuenta creada!
+                    ¡Revisa tu correo!
                 </h2>
-                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '14px', lineHeight: 1.6, margin: '0 0 30px' }}>
-                    Tu correo fue verificado exitosamente. Ya puedes explorar las Hupit Boxes cerca de ti.
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '14px', lineHeight: 1.6, margin: '0 0 12px' }}>
+                    Enviamos un enlace de confirmación a <strong style={{ color: '#40916C' }}>{email}</strong>.
+                </p>
+                <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '13px', lineHeight: 1.5, margin: '0 0 30px' }}>
+                    Haz clic en el enlace del correo para activar tu cuenta y luego inicia sesión.
                 </p>
                 <button
                     onClick={() => navigate('/login')}
                     style={S.btn}
                 >
-                    Iniciar sesión
+                    Ir a iniciar sesión
                 </button>
             </div>
         </div>
     );
 };
-
-// ── Componente auxiliar: indicador de pasos ────────────────────────────────────
-const STEPS = ['Datos', 'Verificación', 'Confirmación'];
-
-const StepsIndicator: React.FC<{ current: number }> = ({ current }) => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0', marginBottom: '24px' }}>
-        {STEPS.map((label, i) => (
-            <React.Fragment key={i}>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
-                    <div style={{
-                        width: '32px', height: '32px', borderRadius: '50%',
-                        background: i < current ? '#40916C' : i === current ? '#2D6A4F' : 'rgba(255,255,255,0.1)',
-                        border: `2px solid ${i <= current ? '#40916C' : 'rgba(255,255,255,0.2)'}`,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '12px', fontWeight: 700,
-                        color: i <= current ? '#fff' : 'rgba(255,255,255,0.3)',
-                        transition: 'all 0.3s',
-                    }}>
-                        {i < current ? '✓' : i + 1}
-                    </div>
-                    <span style={{ fontSize: '10px', color: i <= current ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.3)', fontWeight: i === current ? 700 : 400 }}>
-                        {label}
-                    </span>
-                </div>
-                {i < STEPS.length - 1 && (
-                    <div style={{ flex: 1, height: '2px', background: i < current ? '#40916C' : 'rgba(255,255,255,0.1)', margin: '0 6px', marginBottom: '18px', transition: 'background 0.3s' }} />
-                )}
-            </React.Fragment>
-        ))}
-    </div>
-);

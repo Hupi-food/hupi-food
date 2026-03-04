@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router';
 import { useAuth, UserRole } from './contexts/AuthContext';
+import { SupabaseHealthCheck } from './views/SupabaseHealthCheck';
 
 // --- Landing ---
 import { NavigationModern } from './components/NavigationModern';
@@ -65,6 +66,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/health" element={<SupabaseHealthCheck />} />
       <Route path="/login" element={<LoginScreen />} />
       <Route path="/register" element={<RegisterScreen />} />
       <Route path="/register/store" element={<RegisterStoreScreen />} />

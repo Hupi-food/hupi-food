@@ -1,8 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '../../lib/supabase';
+import type { User, Session, AuthError } from '@supabase/supabase-js';
+
+// ─── Tipos ──────────────────────────────────────────────────────────────────
 
 export type UserRole = 'customer' | 'store_owner' | 'super_admin';
 export type StoreOwnerStatus = 'pending_approval' | 'active' | 'rejected';
-export type VerificationStatus = 'pending' | 'verified';
 
 export interface AuthUser {
     id: string;
@@ -40,205 +43,222 @@ interface AuthContextType {
     logout: () => void;
     registerCustomer: (data: RegisterCustomerData) => Promise<{ success: boolean; error?: string }>;
     registerStore: (data: RegisterStoreData) => Promise<{ success: boolean; error?: string }>;
-    verifyEmail: (email: string, code: string) => Promise<{ success: boolean; error?: string }>;
-    resendVerification: (email: string) => Promise<void>;
     isAuthenticated: boolean;
-    pendingVerificationEmail: string | null;
+    isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-// ─── BASE DE DATOS INICIAL (simulada en memoria) ───────────────────────────────
-// El Super Admin es el ÚNICO usuario creado directamente en la BD inicial.
-// Los demás usuarios se crean a través del flujo de registro.
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-const DB_KEY = 'hupit_db_users';
-const DB_PENDING_KEY = 'hupit_db_pending_verifications';
-
-const SUPER_ADMIN_SEED: AuthUser & { password: string } = {
-    id: 'sa_001',
-    name: 'Admin Hupit',
-    email: 'admin@hupit.co',
-    role: 'super_admin',
-    avatar: 'AH',
-    emailVerified: true,
-    password: 'Hupit@2026!',
-};
-
-type StoredUser = AuthUser & { password: string };
-type PendingVerification = { email: string; code: string; expiresAt: number; userData: StoredUser };
-
-function getDB(): StoredUser[] {
-    try {
-        const raw = localStorage.getItem(DB_KEY);
-        if (raw) return JSON.parse(raw);
-    } catch { /* */ }
-    // Seed inicial: solo el super admin
-    const seed = [SUPER_ADMIN_SEED];
-    localStorage.setItem(DB_KEY, JSON.stringify(seed));
-    return seed;
+function translateAuthError(error: AuthError): string {
+    const msg = error.message.toLowerCase();
+    if (msg.includes('invalid login credentials')) return 'Correo o contraseña incorrectos.';
+    if (msg.includes('email not confirmed')) return 'Debes verificar tu correo antes de iniciar sesión.';
+    if (msg.includes('user already registered')) return 'Ya existe una cuenta con este correo electrónico.';
+    if (msg.includes('password') && msg.includes('at least')) return 'La contraseña debe tener al menos 6 caracteres.';
+    if (msg.includes('rate limit')) return 'Demasiados intentos. Espera un momento antes de intentar de nuevo.';
+    if (msg.includes('network')) return 'Error de red. Verifica tu conexión a internet.';
+    return error.message;
 }
 
-function saveDB(users: StoredUser[]) {
-    localStorage.setItem(DB_KEY, JSON.stringify(users));
+function makeAvatar(name: string): string {
+    return name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
 }
 
-function getPending(): PendingVerification[] {
-    try {
-        const raw = localStorage.getItem(DB_PENDING_KEY);
-        return raw ? JSON.parse(raw) : [];
-    } catch { return []; }
+async function fetchProfile(userId: string): Promise<AuthUser | null> {
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+    if (error || !data) return null;
+
+    return {
+        id: data.id,
+        name: data.name || '',
+        email: data.email || '',
+        role: (data.role as UserRole) || 'customer',
+        avatar: data.avatar || makeAvatar(data.name || ''),
+        storeOwnerStatus: data.store_owner_status as StoreOwnerStatus | undefined,
+        emailVerified: true,
+        storeName: data.store_name,
+        storeCategory: data.store_category,
+        storeAddress: data.store_address,
+    };
 }
 
-function savePending(list: PendingVerification[]) {
-    localStorage.setItem(DB_PENDING_KEY, JSON.stringify(list));
-}
-
-function generateCode(): string {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
-function generateId(): string {
-    return `u_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
-
-// ─── PROVIDER ─────────────────────────────────────────────────────────────────
+// ─── Provider ───────────────────────────────────────────────────────────────
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<AuthUser | null>(() => {
-        try {
-            const stored = localStorage.getItem('hupit_session');
-            return stored ? JSON.parse(stored) : null;
-        } catch { return null; }
-    });
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [allUsers, setAllUsers] = useState<AuthUser[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const [pendingVerificationEmail, setPendingVerificationEmail] = useState<string | null>(null);
-    const [allUsers, setAllUsers] = useState<AuthUser[]>(() => getDB());
+    // ── Cargar perfil desde sesión de Supabase ───────────────────────────────
+    const loadUserFromSession = useCallback(async (session: Session | null) => {
+        if (!session?.user) {
+            setUser(null);
+            setIsLoading(false);
+            return;
+        }
+
+        const profile = await fetchProfile(session.user.id);
+
+        if (profile) {
+            // Verificar bloqueos para store_owner
+            if (profile.role === 'store_owner' && profile.storeOwnerStatus === 'rejected') {
+                setUser(null);
+            } else {
+                setUser(profile);
+            }
+        } else {
+            // Perfil no encontrado — usar datos básicos de auth
+            setUser({
+                id: session.user.id,
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+                email: session.user.email || '',
+                role: (session.user.user_metadata?.role as UserRole) || 'customer',
+                avatar: makeAvatar(session.user.user_metadata?.name || session.user.email || ''),
+                emailVerified: !!session.user.email_confirmed_at,
+            });
+        }
+
+        setIsLoading(false);
+    }, []);
 
     useEffect(() => {
-        if (user) localStorage.setItem('hupit_session', JSON.stringify(user));
-        else localStorage.removeItem('hupit_session');
-    }, [user]);
+        // Obtener sesión inicial
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            loadUserFromSession(session);
+        });
 
-    // ── Login ──────────────────────────────────────────────────────────────────
+        // Escuchar cambios de autenticación
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+                loadUserFromSession(session);
+            }
+        );
+
+        return () => subscription.unsubscribe();
+    }, [loadUserFromSession]);
+
+    // ── Cargar todos los usuarios (para Admin) ───────────────────────────────
+    useEffect(() => {
+        if (user?.role === 'super_admin') {
+            supabase
+                .from('profiles')
+                .select('*')
+                .then(({ data }) => {
+                    if (data) {
+                        setAllUsers(data.map((p: Record<string, unknown>) => ({
+                            id: p.id as string,
+                            name: (p.name as string) || '',
+                            email: (p.email as string) || '',
+                            role: (p.role as UserRole) || 'customer',
+                            avatar: makeAvatar((p.name as string) || ''),
+                            storeOwnerStatus: p.store_owner_status as StoreOwnerStatus | undefined,
+                            emailVerified: true,
+                            storeName: p.store_name as string | undefined,
+                            storeCategory: p.store_category as string | undefined,
+                            storeAddress: p.store_address as string | undefined,
+                        })));
+                    }
+                });
+        }
+    }, [user?.role]);
+
+    // ── Login ────────────────────────────────────────────────────────────────
     const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
-        const db = getDB();
-        const found = db.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-        if (!found) return { success: false, error: 'Correo o contraseña incorrectos.' };
-        if (!found.emailVerified) return { success: false, error: 'Debes verificar tu correo antes de iniciar sesión.' };
-        if (found.role === 'store_owner' && found.storeOwnerStatus === 'pending_approval') {
-            return { success: false, error: 'Tu cuenta está pendiente de aprobación por el administrador.' };
-        }
-        if (found.role === 'store_owner' && found.storeOwnerStatus === 'rejected') {
-            return { success: false, error: 'Tu solicitud fue rechazada. Contacta al soporte.' };
-        }
+        if (error) return { success: false, error: translateAuthError(error) };
 
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const { password: _pw, ...publicUser } = found;
-        setUser(publicUser);
+        // onAuthStateChange se encargará de actualizar el user
         return { success: true };
     };
 
-    // ── Logout ─────────────────────────────────────────────────────────────────
-    const logout = () => setUser(null);
+    // ── Logout ───────────────────────────────────────────────────────────────
+    const logout = async () => {
+        await supabase.auth.signOut();
+        setUser(null);
+    };
 
-    // ── Registro Cliente ───────────────────────────────────────────────────────
+    // ── Registro Cliente ─────────────────────────────────────────────────────
     const registerCustomer = async (data: RegisterCustomerData): Promise<{ success: boolean; error?: string }> => {
-        const db = getDB();
-        if (db.find(u => u.email.toLowerCase() === data.email.toLowerCase())) {
-            return { success: false, error: 'Ya existe una cuenta con este correo electrónico.' };
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: data.email,
+            password: data.password,
+            options: {
+                data: {
+                    name: data.name,
+                    role: 'customer',
+                },
+            },
+        });
+
+        if (authError) return { success: false, error: translateAuthError(authError) };
+
+        // Crear perfil en la tabla profiles
+        if (authData.user) {
+            const { error: profileError } = await supabase.from('profiles').insert({
+                id: authData.user.id,
+                name: data.name,
+                email: data.email,
+                role: 'customer',
+                avatar: makeAvatar(data.name),
+            });
+
+            if (profileError) {
+                console.error('[Hupit] Error creando perfil:', profileError.message);
+            }
         }
 
-        const newUser: StoredUser = {
-            id: generateId(),
-            name: data.name,
-            email: data.email,
-            role: 'customer',
-            avatar: data.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-            emailVerified: false,
-            password: data.password,
-        };
-
-        const code = generateCode();
-        const pending = getPending().filter(p => p.email !== data.email);
-        pending.push({ email: data.email, code, expiresAt: Date.now() + 10 * 60 * 1000, userData: newUser });
-        savePending(pending);
-
-        // Simular envío de correo (en producción usaría un servicio real)
-        console.info(`[Hupit] Código de verificación para ${data.email}: ${code}`);
-
-        setPendingVerificationEmail(data.email);
         return { success: true };
     };
 
-    // ── Registro Dueño de Local ────────────────────────────────────────────────
+    // ── Registro Dueño de Local ──────────────────────────────────────────────
     const registerStore = async (data: RegisterStoreData): Promise<{ success: boolean; error?: string }> => {
-        const db = getDB();
-        if (db.find(u => u.email.toLowerCase() === data.email.toLowerCase())) {
-            return { success: false, error: 'Ya existe una cuenta con este correo electrónico.' };
-        }
-
-        const newUser: StoredUser = {
-            id: generateId(),
-            name: data.ownerName,
+        const { data: authData, error: authError } = await supabase.auth.signUp({
             email: data.email,
-            role: 'store_owner',
-            avatar: data.ownerName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2),
-            emailVerified: false,
-            storeOwnerStatus: 'pending_approval',
-            storeName: data.storeName,
-            storeCategory: data.storeCategory,
-            storeAddress: data.storeAddress,
             password: data.password,
-        };
+            options: {
+                data: {
+                    name: data.ownerName,
+                    role: 'store_owner',
+                },
+            },
+        });
 
-        const code = generateCode();
-        const pending = getPending().filter(p => p.email !== data.email);
-        pending.push({ email: data.email, code, expiresAt: Date.now() + 10 * 60 * 1000, userData: newUser });
-        savePending(pending);
+        if (authError) return { success: false, error: translateAuthError(authError) };
 
-        console.info(`[Hupit] Código de verificación para local ${data.storeName} (${data.email}): ${code}`);
+        // Crear perfil con estado pendiente de aprobación
+        if (authData.user) {
+            const { error: profileError } = await supabase.from('profiles').insert({
+                id: authData.user.id,
+                name: data.ownerName,
+                email: data.email,
+                role: 'store_owner',
+                avatar: makeAvatar(data.ownerName),
+                store_owner_status: 'pending_approval',
+                store_name: data.storeName,
+                store_category: data.storeCategory,
+                store_address: data.storeAddress,
+                phone: data.phone,
+            });
 
-        setPendingVerificationEmail(data.email);
-        return { success: true };
-    };
-
-    // ── Verificar Email ────────────────────────────────────────────────────────
-    const verifyEmail = async (email: string, code: string): Promise<{ success: boolean; error?: string }> => {
-        const pending = getPending();
-        const entry = pending.find(p => p.email.toLowerCase() === email.toLowerCase());
-
-        if (!entry) return { success: false, error: 'No hay verificación pendiente para este correo.' };
-        if (Date.now() > entry.expiresAt) {
-            savePending(pending.filter(p => p.email !== email));
-            return { success: false, error: 'El código expiró. Solicita uno nuevo.' };
+            if (profileError) {
+                console.error('[Hupit] Error creando perfil de local:', profileError.message);
+            }
         }
-        if (entry.code !== code) return { success: false, error: 'Código incorrecto. Intenta de nuevo.' };
-
-        // Mover de pending a DB
-        const newUser = { ...entry.userData, emailVerified: true };
-        const db = getDB();
-        db.push(newUser);
-        saveDB(db);
-        setAllUsers(db);
-        savePending(pending.filter(p => p.email !== email));
-        setPendingVerificationEmail(null);
 
         return { success: true };
-    };
-
-    // ── Reenviar verificación ──────────────────────────────────────────────────
-    const resendVerification = async (email: string): Promise<void> => {
-        const pending = getPending();
-        const entry = pending.find(p => p.email.toLowerCase() === email.toLowerCase());
-        if (!entry) return;
-
-        const newCode = generateCode();
-        entry.code = newCode;
-        entry.expiresAt = Date.now() + 10 * 60 * 1000;
-        savePending(pending);
-        console.info(`[Hupit] Nuevo código para ${email}: ${newCode}`);
     };
 
     return (
@@ -249,10 +269,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             logout,
             registerCustomer,
             registerStore,
-            verifyEmail,
-            resendVerification,
             isAuthenticated: !!user,
-            pendingVerificationEmail,
+            isLoading,
         }}>
             {children}
         </AuthContext.Provider>
