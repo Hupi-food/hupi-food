@@ -129,6 +129,8 @@ export function HeroInnovative() {
 
           <motion.a
             href="/login"
+            target="_blank"
+            rel="noopener noreferrer"
             whileHover={{ scale: 1.05, y: -3 }}
             whileTap={{ scale: 0.95 }}
             className="px-10 py-4 rounded-2xl border-2 font-semibold text-lg flex items-center justify-center gap-3 transition-all duration-300 no-underline backdrop-blur-sm"

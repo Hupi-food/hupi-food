@@ -191,6 +191,8 @@ export function HowItWorksInnovative() {
           </p>
           <motion.a
             href="/login"
+            target="_blank"
+            rel="noopener noreferrer"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="inline-block px-10 py-4 rounded-2xl font-bold text-lg relative overflow-hidden group no-underline"
