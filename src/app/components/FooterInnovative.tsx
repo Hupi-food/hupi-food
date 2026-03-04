@@ -45,10 +45,16 @@ export function FooterInnovative() {
               Rescata comida deliciosa. Gana descuentos increíbles. Salva el planeta.
             </p>
             <div className="flex gap-4">
-              {['🌐', '📱', '🤝'].map((icon, i) => (
+              {[
+                { icon: '🌐', href: '/login' },
+                { icon: '📱', href: 'https://whatsapp.com/channel/0029VbCQrFV1SWt3xy6MQE1A' },
+                { icon: '🤝', href: '#' }
+              ].map((item, i) => (
                 <motion.a
                   key={i}
-                  href="#"
+                  href={item.href}
+                  target={item.href.startsWith('http') ? "_blank" : "_self"}
+                  rel={item.href.startsWith('http') ? "noopener noreferrer" : ""}
                   whileHover={{ scale: 1.2, y: -3 }}
                   className="inline-flex items-center justify-center w-10 h-10 rounded-full"
                   style={{
@@ -56,7 +62,7 @@ export function FooterInnovative() {
                     border: '1px solid rgba(255, 255, 255, 0.2)',
                   }}
                 >
-                  <span className="text-lg">{icon}</span>
+                  <span className="text-lg">{item.icon}</span>
                 </motion.a>
               ))}
             </div>
