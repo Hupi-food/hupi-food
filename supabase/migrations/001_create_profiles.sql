@@ -5,19 +5,21 @@
 -- ═══════════════════════════════════════════════════════════════════════
 
 -- 1. Crear tabla profiles
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    name TEXT NOT NULL DEFAULT '',
-    email TEXT NOT NULL DEFAULT '',
-    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'store_owner', 'super_admin')),
-    avatar TEXT,
-    store_owner_status TEXT CHECK (store_owner_status IN ('pending_approval', 'active', 'rejected')),
-    store_name TEXT,
-    store_category TEXT,
-    store_address TEXT,
-    phone TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+CREATE TABLE public.profiles (
+  id uuid NOT NULL,
+  name text NOT NULL DEFAULT ''::text,
+  email text NOT NULL DEFAULT ''::text,
+  role text NOT NULL DEFAULT 'customer'::text CHECK (role = ANY (ARRAY['customer'::text, 'store_owner'::text, 'super_admin'::text])),
+  avatar text,
+  store_owner_status text CHECK (store_owner_status = ANY (ARRAY['pending_approval'::text, 'active'::text, 'rejected'::text])),
+  store_name text,
+  store_category text,
+  store_address text,
+  phone text,
+  created_at timestamp with time zone NOT NULL DEFAULT now(),
+  updated_at timestamp with time zone NOT NULL DEFAULT now(),
+  CONSTRAINT profiles_pkey PRIMARY KEY (id),
+  CONSTRAINT profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
 
 -- 2. Habilitar Row Level Security
