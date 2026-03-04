@@ -14,8 +14,6 @@ import { FooterInnovative } from './components/FooterInnovative';
 
 // --- Auth ---
 import { LoginScreen } from './views/auth/LoginScreen';
-import { RegisterScreen } from './views/auth/RegisterScreen';
-import { RegisterStoreScreen } from './views/auth/RegisterStoreScreen';
 
 // --- Customer ---
 import { HomeScreen } from './views/customer/HomeScreen';
@@ -66,8 +64,6 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginScreen />} />
-      <Route path="/register" element={<RegisterScreen />} />
-      <Route path="/register/store" element={<RegisterStoreScreen />} />
 
       {/* Customer Routes */}
       <Route path="/app/home" element={<RequireAuth allowedRole="customer"><HomeScreen /></RequireAuth>} />
