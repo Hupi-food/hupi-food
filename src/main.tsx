@@ -1,7 +1,6 @@
-
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router";
-import { AuthProvider } from "./app/contexts/AuthContext";
+import { AuthProvider } from "./app/contexts/AuthContext.tsx";
 import App from "./app/App.tsx";
 import "./styles/index.css";
 

@@ -3,10 +3,12 @@ import { useRef } from 'react';
 import { ArrowRight } from 'lucide-react';
 import imgCommunity from '../../assets/community.png';
 import { HupiIcon } from './ui/HupiIcon';
+import { useNavigate } from 'react-router';
 
 export function CTASectionModern() {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-100px' });
+  const navigate = useNavigate();
 
   return (
     <section
@@ -144,23 +146,22 @@ export function CTASectionModern() {
                   <span>Únete en WhatsApp</span>
                 </motion.a>
 
-                <motion.a
-                  href="https://app.hupifood.co"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <motion.button
+                  onClick={() => navigate('/login')}
                   whileHover={{ scale: 1.05, y: -3 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-8 py-4 rounded-2xl flex items-center gap-3 font-bold text-lg no-underline"
+                  className="px-8 py-4 rounded-2xl flex items-center gap-3 font-bold text-lg no-underline cursor-pointer"
                   style={{
                     background: 'linear-gradient(135deg, #F77F00, #FCBF49)',
                     color: '#1B1B2F',
                     fontFamily: "'Inter', sans-serif",
                     boxShadow: '0 8px 32px rgba(247, 127, 0, 0.3)',
+                    border: 'none',
                   }}
                 >
                   <span>🌐</span>
                   <span>Ir a la App Web</span>
-                </motion.a>
+                </motion.button>
               </div>
 
               {/* Explore Button */}

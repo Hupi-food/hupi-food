@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import type { HupiBox } from '../../data/mockData';
 import { TierBadge } from './TierBadge';
 
@@ -20,7 +20,9 @@ const BOX_EMOJI: Record<string, string> = {
     gold: '✨',
 };
 
-export const HupiBoxCard: React.FC<HupiBoxCardProps> = ({ box, onClick, compact = false }) => {
+// Use React.memo to prevent unnecessary re-renders of the box card when the parent list updates
+// but the data for this specific box hasn't changed.
+export const HupiBoxCard: React.FC<HupiBoxCardProps> = memo(({ box, onClick, compact = false }) => {
     const style = tierBoxStyle[box.tier];
     const savings = Math.round((1 - box.price / box.originalValue) * 100);
     const spotsLeft = box.quantity - box.reserved;
@@ -93,4 +95,4 @@ export const HupiBoxCard: React.FC<HupiBoxCardProps> = ({ box, onClick, compact 
             </div>
         </div>
     );
-};
+});
