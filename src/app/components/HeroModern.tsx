@@ -1,11 +1,13 @@
 import { motion, useScroll, useTransform } from 'motion/react';
 import { ChevronDown, MapPin, ArrowRight } from 'lucide-react';
 import heroImg from '../../assets/hero-fullscreen.png';
+import { useNavigate } from 'react-router';
 
 export function HeroModern() {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 500], [0, 150]);
   const opacity = useTransform(scrollY, [0, 300], [1, 0]);
+  const navigate = useNavigate();
 
   const scrollToContent = () => {
     const element = document.getElementById('por-que');
@@ -181,13 +183,11 @@ export function HeroModern() {
               <ArrowRight size={20} className="transition-transform group-hover:translate-x-1" />
             </motion.a>
 
-            <motion.a
-              href="https://app.hupifood.co"
-              target="_blank"
-              rel="noopener noreferrer"
+            <motion.button
+              onClick={() => navigate('/login')}
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
-              className="px-8 py-4 rounded-2xl flex items-center gap-3 border-2 transition-all duration-300 font-semibold text-lg no-underline"
+              className="px-8 py-4 rounded-2xl flex items-center gap-3 border-2 transition-all duration-300 font-semibold text-lg no-underline cursor-pointer"
               style={{
                 fontFamily: "'Inter', sans-serif",
                 backgroundColor: 'rgba(255,255,255,0.1)',
@@ -199,7 +199,7 @@ export function HeroModern() {
               <span>🌐</span>
               <span>Ir a la App Web</span>
               <ArrowRight size={20} />
-            </motion.a>
+            </motion.button>
           </motion.div>
 
           {/* Stats */}

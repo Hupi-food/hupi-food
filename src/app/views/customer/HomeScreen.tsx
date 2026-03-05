@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { BottomNav } from '../../components/shared/BottomNav';
@@ -13,10 +13,14 @@ export const HomeScreen: React.FC = () => {
     const [activeCategory, setActiveCategory] = useState('Todo');
     const [showMap, setShowMap] = useState(true);
 
-    const availableBoxes = HUPI_BOXES.filter(b => b.isAvailable);
-    const filtered = activeCategory === 'Todo'
-        ? availableBoxes
-        : availableBoxes.filter(b => b.storeCategory === activeCategory);
+    // Optimized filtering: only recalculate when activeCategory changes.
+    // This avoids redundant filtering on every render (e.g., when map is toggled).
+    const filtered = useMemo(() => {
+        const availableBoxes = HUPI_BOXES.filter(b => b.isAvailable);
+        return activeCategory === 'Todo'
+            ? availableBoxes
+            : availableBoxes.filter(b => b.storeCategory === activeCategory);
+    }, [activeCategory]);
 
     return (
         <div style={{
