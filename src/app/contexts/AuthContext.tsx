@@ -1,6 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '../../lib/supabase';
+import type { User, Session, AuthError } from '@supabase/supabase-js';
+
+// ─── Tipos ──────────────────────────────────────────────────────────────────
 
 export type UserRole = 'customer' | 'store_owner' | 'super_admin';
+export type StoreOwnerStatus = 'pending_approval' | 'active' | 'rejected';
 
 export interface AuthUser {
     id: string;
@@ -8,69 +13,294 @@ export interface AuthUser {
     email: string;
     role: UserRole;
     avatar?: string;
+    storeOwnerStatus?: StoreOwnerStatus;
+    emailVerified?: boolean;
+    storeName?: string;
+    storeCategory?: string;
+    storeAddress?: string;
+}
+
+interface RegisterCustomerData {
+    name: string;
+    email: string;
+    password: string;
+}
+
+interface RegisterStoreData {
+    ownerName: string;
+    email: string;
+    password: string;
+    storeName: string;
+    storeCategory: string;
+    storeAddress: string;
+    phone: string;
 }
 
 interface AuthContextType {
     user: AuthUser | null;
-    login: (email: string, password: string, role: UserRole) => void;
+    allUsers: AuthUser[];
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
     logout: () => void;
+    registerCustomer: (data: RegisterCustomerData) => Promise<{ success: boolean; error?: string }>;
+    registerStore: (data: RegisterStoreData) => Promise<{ success: boolean; error?: string }>;
+    updateUserStatus: (userId: string, status: StoreOwnerStatus) => Promise<{ success: boolean; error?: string }>;
     isAuthenticated: boolean;
+    isLoading: boolean;
+    isPendingApproval: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const DEMO_USERS: Record<UserRole, AuthUser> = {
-    customer: {
-        id: 'c1',
-        name: 'Valentina Gómez',
-        email: 'valentina@email.com',
-        role: 'customer',
-        avatar: 'VG',
-    },
-    store_owner: {
-        id: 's1',
-        name: 'Panadería El Sol',
-        email: 'panaderia@email.com',
-        role: 'store_owner',
-        avatar: 'PS',
-    },
-    super_admin: {
-        id: 'a1',
-        name: 'Admin Hupit',
-        email: 'admin@hupit.co',
-        role: 'super_admin',
-        avatar: 'AH',
-    },
-};
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
+function translateAuthError(error: AuthError): string {
+    const msg = error.message.toLowerCase();
+    if (msg.includes('invalid login credentials')) return 'Correo o contraseña incorrectos.';
+    if (msg.includes('email not confirmed')) return 'Debes verificar tu correo antes de iniciar sesión.';
+    if (msg.includes('user already registered')) return 'Ya existe una cuenta con este correo electrónico.';
+    if (msg.includes('password') && msg.includes('at least')) return 'La contraseña debe tener al menos 6 caracteres.';
+    if (msg.includes('rate limit')) return 'Demasiados intentos. Espera un momento antes de intentar de nuevo.';
+    if (msg.includes('network')) return 'Error de red. Verifica tu conexión a internet.';
+    return error.message;
+}
+
+function makeAvatar(name: string): string {
+    return name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2);
+}
+
+async function fetchProfile(userId: string): Promise<AuthUser | null> {
+    const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+    if (error || !data) return null;
+
+    return {
+        id: data.id,
+        name: data.name || '',
+        email: data.email || '',
+        role: (data.role as UserRole) || 'customer',
+        avatar: data.avatar || makeAvatar(data.name || ''),
+        storeOwnerStatus: data.store_owner_status as StoreOwnerStatus | undefined,
+        emailVerified: true,
+        storeName: data.store_name,
+        storeCategory: data.store_category,
+        storeAddress: data.store_address,
+    };
+}
+
+// ─── Provider ───────────────────────────────────────────────────────────────
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [user, setUser] = useState<AuthUser | null>(() => {
-        try {
-            const stored = localStorage.getItem('hupit_user');
-            return stored ? JSON.parse(stored) : null;
-        } catch {
-            return null;
+    const [user, setUser] = useState<AuthUser | null>(null);
+    const [allUsers, setAllUsers] = useState<AuthUser[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // ── Cargar perfil desde sesión de Supabase ───────────────────────────────
+    const loadUserFromSession = useCallback(async (session: Session | null) => {
+        if (!session?.user) {
+            setUser(null);
+            setIsLoading(false);
+            return;
         }
-    });
+
+        const profile = await fetchProfile(session.user.id);
+
+        if (profile) {
+            // Verificar bloqueos para store_owner
+            if (profile.role === 'store_owner' && profile.storeOwnerStatus === 'rejected') {
+                setUser(null);
+            } else {
+                setUser(profile);
+            }
+        } else {
+            // Perfil no encontrado — usar datos básicos de auth
+            setUser({
+                id: session.user.id,
+                name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || '',
+                email: session.user.email || '',
+                role: (session.user.user_metadata?.role as UserRole) || 'customer',
+                avatar: makeAvatar(session.user.user_metadata?.name || session.user.email || ''),
+                emailVerified: !!session.user.email_confirmed_at,
+            });
+        }
+
+        setIsLoading(false);
+    }, []);
+
+    const isPendingApproval = user?.role === 'store_owner' && user?.storeOwnerStatus === 'pending_approval';
 
     useEffect(() => {
-        if (user) {
-            localStorage.setItem('hupit_user', JSON.stringify(user));
-        } else {
-            localStorage.removeItem('hupit_user');
-        }
-    }, [user]);
+        // Obtener sesión inicial
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            loadUserFromSession(session);
+        });
 
-    const login = (_email: string, _password: string, role: UserRole) => {
-        setUser(DEMO_USERS[role]);
+        // Escuchar cambios de autenticación
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+                loadUserFromSession(session);
+            }
+        );
+
+        return () => subscription.unsubscribe();
+    }, [loadUserFromSession]);
+
+    // ── Cargar todos los usuarios (para Admin) ───────────────────────────────
+    useEffect(() => {
+        if (user?.role === 'super_admin') {
+            supabase
+                .from('profiles')
+                .select('*')
+                .then(({ data }) => {
+                    if (data) {
+                        setAllUsers(data.map((p: Record<string, unknown>) => ({
+                            id: p.id as string,
+                            name: (p.name as string) || '',
+                            email: (p.email as string) || '',
+                            role: (p.role as UserRole) || 'customer',
+                            avatar: makeAvatar((p.name as string) || ''),
+                            storeOwnerStatus: p.store_owner_status as StoreOwnerStatus | undefined,
+                            emailVerified: true,
+                            storeName: p.store_name as string | undefined,
+                            storeCategory: p.store_category as string | undefined,
+                            storeAddress: p.store_address as string | undefined,
+                        })));
+                    }
+                });
+        }
+    }, [user?.role]);
+
+    // ── Login ────────────────────────────────────────────────────────────────
+    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+        if (error) return { success: false, error: translateAuthError(error) };
+
+        // onAuthStateChange se encargará de actualizar el user
+        return { success: true };
     };
 
-    const logout = () => {
+    // ── Logout ───────────────────────────────────────────────────────────────
+    const logout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
     };
 
+    // ── Registro Cliente ─────────────────────────────────────────────────────
+    const registerCustomer = async (data: RegisterCustomerData): Promise<{ success: boolean; error?: string }> => {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: data.email,
+            password: data.password,
+            options: {
+                data: {
+                    name: data.name,
+                    role: 'customer',
+                },
+            },
+        });
+
+        if (authError) return { success: false, error: translateAuthError(authError) };
+
+        // El Trigger `on_auth_user_created` se encarga de crear el perfil.
+        // Hacemos una inserción manual como respaldo y para capturar errores inmediatos.
+        if (authData.user) {
+            const { error: profileError } = await supabase.from('profiles').upsert({
+                id: authData.user.id,
+                name: data.name,
+                email: data.email,
+                role: 'customer',
+                avatar: makeAvatar(data.name),
+            });
+
+            if (profileError) {
+                console.error('[Hupit] Error creando perfil:', profileError.message);
+                // No bloqueamos el flujo porque el trigger es el respaldo principal, 
+                // pero informamos si algo salió muy mal.
+            }
+        }
+
+        return { success: true };
+    };
+
+    // ── Registro Dueño de Local ──────────────────────────────────────────────
+    const registerStore = async (data: RegisterStoreData): Promise<{ success: boolean; error?: string }> => {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+            email: data.email,
+            password: data.password,
+            options: {
+                data: {
+                    name: data.ownerName,
+                    role: 'store_owner',
+                    store_name: data.storeName,
+                    store_category: data.storeCategory,
+                    store_address: data.storeAddress,
+                    phone: data.phone,
+                },
+            },
+        });
+
+        if (authError) return { success: false, error: translateAuthError(authError) };
+
+        // El Trigger `on_auth_user_created` se encarga de crear el perfil.
+        // Hacemos una inserción manual como respaldo.
+        if (authData.user) {
+            const { error: profileError } = await supabase.from('profiles').upsert({
+                id: authData.user.id,
+                name: data.ownerName,
+                email: data.email,
+                role: 'store_owner',
+                avatar: makeAvatar(data.ownerName),
+                store_owner_status: 'pending_approval',
+                store_name: data.storeName,
+                store_category: data.storeCategory,
+                store_address: data.storeAddress,
+                phone: data.phone,
+            });
+
+            if (profileError) {
+                console.error('[Hupit] Error creando perfil de local:', profileError.message);
+            }
+        }
+
+        return { success: true };
+    };
+
+    // ── Actualizar Estado (Admin) ────────────────────────────────────────────
+    const updateUserStatus = async (userId: string, status: StoreOwnerStatus): Promise<{ success: boolean; error?: string }> => {
+        const { error } = await supabase
+            .from('profiles')
+            .update({ store_owner_status: status })
+            .eq('id', userId);
+
+        if (error) return { success: false, error: error.message };
+
+        // Actualizar lista local de usuarios
+        setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, storeOwnerStatus: status } : u));
+
+        return { success: true };
+    };
+
     return (
-        <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{
+            user,
+            allUsers,
+            login,
+            logout,
+            registerCustomer,
+            registerStore,
+            updateUserStatus,
+            isAuthenticated: !!user,
+            isLoading,
+            isPendingApproval,
+        }}>
             {children}
         </AuthContext.Provider>
     );
