@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { useAuth, UserRole } from './contexts/AuthContext';
 import { SupabaseHealthCheck } from './views/SupabaseHealthCheck';
 
@@ -71,42 +72,45 @@ const RequireAuth = ({ children, allowedRole }: { children: React.ReactNode; all
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/health" element={<SupabaseHealthCheck />} />
-      <Route path="/login" element={<LoginScreen />} />
-      <Route path="/register" element={<RegisterScreen />} />
-      <Route path="/register/store" element={<RegisterStoreScreen />} />
-      <Route path="/store/pending" element={
-        <RequireAuth allowedRole="store_owner">
-          <PendingApprovalScreen />
-        </RequireAuth>
-      } />
+    <>
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/health" element={<SupabaseHealthCheck />} />
+        <Route path="/login" element={<LoginScreen />} />
+        <Route path="/register" element={<RegisterScreen />} />
+        <Route path="/register/store" element={<RegisterStoreScreen />} />
+        <Route path="/store/pending" element={
+          <RequireAuth allowedRole="store_owner">
+            <PendingApprovalScreen />
+          </RequireAuth>
+        } />
 
-      {/* Customer Routes */}
-      <Route path="/app/home" element={<RequireAuth allowedRole="customer"><HomeScreen /></RequireAuth>} />
-      <Route path="/app/box/:id" element={<RequireAuth allowedRole="customer"><BoxDetailsScreen /></RequireAuth>} />
-      <Route path="/app/checkout" element={<RequireAuth allowedRole="customer"><CheckoutScreen /></RequireAuth>} />
-      <Route path="/app/orders" element={<RequireAuth allowedRole="customer"><OrdersScreen /></RequireAuth>} />
-      <Route path="/app/profile" element={<RequireAuth allowedRole="customer"><ProfileScreen /></RequireAuth>} />
+        {/* Customer Routes */}
+        <Route path="/app/home" element={<RequireAuth allowedRole="customer"><HomeScreen /></RequireAuth>} />
+        <Route path="/app/box/:id" element={<RequireAuth allowedRole="customer"><BoxDetailsScreen /></RequireAuth>} />
+        <Route path="/app/checkout" element={<RequireAuth allowedRole="customer"><CheckoutScreen /></RequireAuth>} />
+        <Route path="/app/orders" element={<RequireAuth allowedRole="customer"><OrdersScreen /></RequireAuth>} />
+        <Route path="/app/profile" element={<RequireAuth allowedRole="customer"><ProfileScreen /></RequireAuth>} />
 
-      {/* Store Owner Routes */}
-      <Route path="/store/dashboard" element={<RequireAuth allowedRole="store_owner"><StoreDashboardScreen /></RequireAuth>} />
-      <Route path="/store/inventory" element={<RequireAuth allowedRole="store_owner"><InventoryScreen /></RequireAuth>} />
-      <Route path="/store/box/:id" element={<RequireAuth allowedRole="store_owner"><BoxFormScreen /></RequireAuth>} />
-      <Route path="/store/scanner" element={<RequireAuth allowedRole="store_owner"><ScannerScreen /></RequireAuth>} />
+        {/* Store Owner Routes */}
+        <Route path="/store/dashboard" element={<RequireAuth allowedRole="store_owner"><StoreDashboardScreen /></RequireAuth>} />
+        <Route path="/store/inventory" element={<RequireAuth allowedRole="store_owner"><InventoryScreen /></RequireAuth>} />
+        <Route path="/store/box/:id" element={<RequireAuth allowedRole="store_owner"><BoxFormScreen /></RequireAuth>} />
+        <Route path="/store/scanner" element={<RequireAuth allowedRole="store_owner"><ScannerScreen /></RequireAuth>} />
 
-      {/* Super Admin Routes */}
-      <Route path="/admin" element={<RequireAuth allowedRole="super_admin"><AdminLayout /></RequireAuth>}>
-        <Route index element={<Navigate to="overview" replace />} />
-        <Route path="overview" element={<AdminOverviewScreen />} />
-        <Route path="payments" element={<PaymentQueueScreen />} />
-        <Route path="users" element={<UsersScreen />} />
-        <Route path="stores" element={<StoresScreen />} />
-        <Route path="security" element={<SecurityScreen />} />
-      </Route>
+        {/* Super Admin Routes */}
+        <Route path="/admin" element={<RequireAuth allowedRole="super_admin"><AdminLayout /></RequireAuth>}>
+          <Route index element={<Navigate to="overview" replace />} />
+          <Route path="overview" element={<AdminOverviewScreen />} />
+          <Route path="payments" element={<PaymentQueueScreen />} />
+          <Route path="users" element={<UsersScreen />} />
+          <Route path="stores" element={<StoresScreen />} />
+          <Route path="security" element={<SecurityScreen />} />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <SpeedInsights />
+    </>
   );
 }
