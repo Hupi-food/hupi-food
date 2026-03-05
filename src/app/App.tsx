@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router';
 import { useAuth, UserRole } from './contexts/AuthContext';
 import { SupabaseHealthCheck } from './views/SupabaseHealthCheck';
 import { SpeedInsights } from '@vercel/speed-insights/react';
+import { Analytics } from '@vercel/analytics/react';
 
 // --- Landing ---
 import { NavigationModern } from './components/NavigationModern';
@@ -111,6 +112,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <SpeedInsights />
+      <Analytics />
     </>
   );
 }
